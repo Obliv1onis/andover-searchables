@@ -29,6 +29,7 @@
     body {
       margin: 0;
       min-height: 100vh;
+      min-height: 100dvh;
       overscroll-behavior: none;
       color: var(--ink);
       background:
@@ -41,7 +42,12 @@
 
     button, input { font: inherit; }
 
-    button { -webkit-tap-highlight-color: transparent; }
+    button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body.modal-open { overflow: hidden; }
 
     .shell {
       width: min(980px, calc(100% - 40px));
@@ -263,14 +269,20 @@
       display: none;
       place-items: center;
       padding: 20px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       background: rgba(31, 36, 32, .42);
+      -webkit-backdrop-filter: blur(8px);
       backdrop-filter: blur(8px);
     }
     .modal-backdrop.visible { display: grid; }
 
     .modal {
       width: min(720px, 100%);
+      max-height: calc(100vh - 40px);
+      max-height: calc(100dvh - 40px);
       padding: 26px;
+      overflow-y: auto;
       border: 1px solid rgba(255, 255, 255, .55);
       border-radius: 24px;
       background: #f8f7f3;
@@ -369,18 +381,57 @@
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
     @media (max-width: 640px) {
-      .shell { width: min(100% - 24px, 980px); padding-top: 18px; }
+      .shell {
+        width: min(100% - 24px, 980px);
+        padding-top: max(18px, env(safe-area-inset-top));
+        padding-bottom: calc(48px + env(safe-area-inset-bottom));
+      }
+      header { gap: 12px; }
+      .brand { min-width: 0; font-size: 19px; }
       .button span { display: none; }
-      .button { width: 42px; padding: 0; }
+      .button { width: 44px; min-height: 44px; padding: 0; }
+      #importButton {
+        flex: 0 0 auto;
+        width: auto;
+        min-height: 48px;
+        padding: 0 15px;
+      }
+      #importButton span { display: inline; font-size: 0; }
+      #importButton span::after { content: "导入"; font-size: 14px; }
       .hero { padding: 28px 0 22px; }
       #search { height: 68px; padding-left: 54px; font-size: 18px; }
       .search-icon { left: 20px; }
       .result-card { padding: 23px 20px 24px; }
       .entry-line { grid-template-columns: 1fr; gap: 1px; }
       .line-label { padding-top: 0; }
-      .modal { padding: 20px; border-radius: 20px; }
+      .modal-backdrop {
+        place-items: end center;
+        padding: max(8px, env(safe-area-inset-top)) 0 0;
+      }
+      .modal {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-height: calc(100vh - max(8px, env(safe-area-inset-top)));
+        max-height: calc(100dvh - max(8px, env(safe-area-inset-top)));
+        padding: 20px 18px calc(18px + env(safe-area-inset-bottom));
+        border-radius: 24px 24px 0 0;
+      }
+      .modal-head { margin-bottom: 14px; }
+      .modal-title { font-size: 24px; }
+      #dictionaryInput {
+        height: auto;
+        min-height: 180px;
+        max-height: min(45dvh, 360px);
+        resize: none;
+        font-size: 16px;
+      }
       .modal-footer { align-items: stretch; flex-direction: column; }
-      #loadDictionary { width: 100%; }
+      #loadDictionary { width: 100%; min-height: 50px; }
+    }
+
+    @media (max-width: 380px) {
+      .brand > span:last-child { display: none; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -674,13 +725,14 @@
 
       function openModal() {
         elements.dictionaryModal.classList.add('visible');
-        document.body.style.overflow = 'hidden';
-        setTimeout(() => elements.dictionaryInput.focus(), 0);
+        document.body.classList.add('modal-open');
+        const mobileOrTouch = window.matchMedia('(max-width: 640px), (pointer: coarse)').matches;
+        if (!mobileOrTouch) setTimeout(() => elements.dictionaryInput.focus(), 0);
       }
 
       function closeModal() {
         elements.dictionaryModal.classList.remove('visible');
-        document.body.style.overflow = '';
+        document.body.classList.remove('modal-open');
       }
 
       elements.importButton.addEventListener('click', openModal);
