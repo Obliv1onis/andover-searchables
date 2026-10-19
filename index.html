@@ -472,7 +472,7 @@
       <div class="modal-head">
         <div>
           <h2 class="modal-title" id="modalTitle">导入词表</h2>
-          <p class="modal-description">把词表粘贴到下面，支持“释义/英文解释”和“单词 词性 英文释义 中文释义”格式。新词会追加到现有词表，同名词条自动跳过。</p>
+          <p class="modal-description">把词表粘贴到下面，支持“释义/英文解释”和“单词 词性 英文释义 中文释义”格式。新词会追加到现有词表，本次粘贴中的重复记录会保留；现有词表中已有的单词会跳过。</p>
         </div>
         <button class="modal-close" id="closeModal" type="button" aria-label="关闭">×</button>
       </div>
@@ -606,7 +606,8 @@
       function updateStatus() {
         const ready = entries.length > 0;
         elements.statusDot.classList.toggle('ready', ready);
-        elements.statusText.textContent = ready ? `已加载 ${entries.length.toLocaleString('zh-CN')} 个词条` : '尚未导入词表';
+        const uniqueCount = new Set(entries.map(entry => entry.search)).size;
+        elements.statusText.textContent = ready ? `已加载 ${entries.length.toLocaleString('zh-CN')} 条记录（${uniqueCount.toLocaleString('zh-CN')} 个不同单词）` : '尚未导入词表';
         elements.clearDictionary.hidden = !ready;
       }
 
@@ -704,22 +705,22 @@
       function updateParseStatus() {
         pendingEntries = parseDictionary(elements.dictionaryInput.value);
         const existingTerms = new Set(entries.map(entry => entry.search));
-        pendingNewEntries = pendingEntries.filter(entry => {
-          if (existingTerms.has(entry.search)) return false;
-          existingTerms.add(entry.search);
-          return true;
-        });
+        // Only skip words saved before this import; preserve repeated records
+        // within the pasted list so its record count remains unchanged.
+        pendingNewEntries = pendingEntries.filter(entry => !existingTerms.has(entry.search));
         const hasText = elements.dictionaryInput.value.trim().length > 0;
-        const duplicateCount = pendingEntries.length - pendingNewEntries.length;
+        const skippedCount = pendingEntries.length - pendingNewEntries.length;
+        const uniqueCount = new Set(pendingEntries.map(entry => entry.search)).size;
+        const recognized = `识别到 ${pendingEntries.length.toLocaleString('zh-CN')} 条记录（${uniqueCount.toLocaleString('zh-CN')} 个不同单词）`;
         elements.parseStatus.classList.toggle('ready', pendingNewEntries.length > 0);
         elements.parseStatus.textContent = pendingEntries.length
           ? pendingNewEntries.length
-            ? `将新增 ${pendingNewEntries.length.toLocaleString('zh-CN')} 个词条${duplicateCount ? `，跳过 ${duplicateCount.toLocaleString('zh-CN')} 个重复词条` : ''}`
-            : `识别到 ${pendingEntries.length.toLocaleString('zh-CN')} 个词条，但都已存在`
+            ? `${recognized}；将新增 ${pendingNewEntries.length.toLocaleString('zh-CN')} 条${skippedCount ? `，跳过已有单词的 ${skippedCount.toLocaleString('zh-CN')} 条记录` : ''}`
+            : `${recognized}，但单词都已存在`
           : hasText ? '暂未识别到词条，请检查格式' : '等待粘贴词表';
         elements.loadDictionary.disabled = !pendingNewEntries.length;
         elements.loadDictionary.textContent = pendingNewEntries.length
-          ? `追加 ${pendingNewEntries.length.toLocaleString('zh-CN')} 个词条`
+          ? `追加 ${pendingNewEntries.length.toLocaleString('zh-CN')} 条记录`
           : '加载词表';
       }
 
@@ -752,7 +753,7 @@
         elements.dictionaryInput.value = '';
         updateParseStatus();
         elements.search.focus();
-        showToast(`已新增 ${addedCount.toLocaleString('zh-CN')} 个词条，共 ${entries.length.toLocaleString('zh-CN')} 个`);
+        showToast(`已新增 ${addedCount.toLocaleString('zh-CN')} 条记录，共 ${entries.length.toLocaleString('zh-CN')} 条`);
       });
       elements.search.addEventListener('input', renderResults);
       elements.clearSearch.addEventListener('click', () => {
